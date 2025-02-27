@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto">
+    <h1 class="text-3xl font-bold mb-8">AI Content Generator</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Generator Form -->
+        <div class="card p-6">
+            <h3 class="text-xl font-semibold mb-6">Generate Content</h3>
+            <form id="generateForm" class="space-y-6">
+                <div>
+                    <label for="topic" class="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+                    <input type="text" id="topic" name="topic" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your topic">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content_type" value="post" checked class="mr-2">
+                            <span>Regular Post</span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content_type" value="article" class="mr-2">
+                            <span>Article</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="include_hashtags" id="includeHashtags" checked class="mr-2">
+                            <span>Include hashtags</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="include_cta" id="includeCTA" checked class="mr-2">
+                            <span>Include call-to-action</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="tone" class="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+                    <select id="tone" name="tone"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="professional">Professional</option>
+                        <option value="casual">Casual</option>
+                        <option value="enthusiastic">Enthusiastic</option>
+                        <option value="informative">Informative</option>
+                    </select>
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-magic mr-2"></i>Generate Content
+                </button>
+            </form>
+        </div>
+
+        <!-- Generated Content -->
+        <div class="space-y-6">
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold">Generated Content</h3>
+                    <div class="space-x-2">
+                        <button id="copyBtn" class="text-blue-600 hover:text-blue-800" disabled>
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button id="editBtn" class="text-blue-600 hover:text-blue-800" disabled>
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="generatedContent" class="border rounded-md p-4 min-h-[200px] bg-gray-50">
+                    <p class="text-gray-500 italic">Generated content will appear here...</p>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4">Quick Actions</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="postNowBtn"
+                        class="flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                        disabled>
+                        <i class="fas fa-paper-plane mr-2"></i>Post Now
+                    </button>
+                    <button id="scheduleBtn"
+                        class="flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                        disabled>
+                        <i class="fas fa-clock mr-2"></i>Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let generatedText = '';
+
+    // Generate Content
+    document.getElementById('generateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Prepare form data
+        const formData = new FormData(e.target);
+        const params = new URLSearchParams(formData).toString();
+
+        // Disable submit button and show loading state
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalBtnContent = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+
+        // Reset generated content area
+        const generatedContentEl = document.getElementById('generatedContent');
+        generatedContentEl.innerHTML = '<p class="text-gray-500 italic">Generating content...</p>';
+
+        try {
+            const response = await fetch('/generate_content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params
+            });
+
+            // Check if response is successful
+            if (!response.ok) {
+                // Try to get error details
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+
+            const data = await response.json();
+
+            // Validate content
+            if (data.content) {
+                generatedText = data.content;
+                generatedContentEl.innerHTML = `<p class="whitespace-pre-wrap">${generatedText}</p>`;
+                
+                // Enable buttons
+                document.getElementById('copyBtn').disabled = false;
+                document.getElementById('editBtn').disabled = false;
+                document.getElementById('postNowBtn').disabled = false;
+                document.getElementById('scheduleBtn').disabled = false;
+            } else if (data.error) {
+                // Handle specific error from server
+                throw new Error(data.error);
+            } else {
+                // No content and no error
+                throw new Error('No content generated');
+            }
+        } catch (error) {
+            console.error('Error generating content:', error);
+            
+            // Show detailed error message
+            generatedContentEl.innerHTML = `
+                <p class="text-red-500">
+                    Error generating content. 
+                    <br>Details: ${error.message}
+                    <br>Please try again or check your inputs.
+                </p>
+            `;
+
+            // Disable action buttons
+            document.getElementById('copyBtn').disabled = true;
+            document.getElementById('editBtn').disabled = true;
+            document.getElementById('postNowBtn').disabled = true;
+            document.getElementById('scheduleBtn').disabled = true;
+        } finally {
+            // Restore submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnContent;
+        }
+    });
+
+    // Copy to Clipboard
+    document.getElementById('copyBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(generatedText).then(() => {
+            alert('Content copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy content');
+        });
+    });
+
+    // Post Now
+    document.getElementById('postNowBtn').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/create_post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `text=${encodeURIComponent(generatedText)}`
+            });
+
+            if (response.ok) {
+                alert('Post published successfully!');
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+        } catch (error) {
+            console.error('Error publishing post:', error);
+            alert(`Failed to publish post: ${error.message}`);
+        }
+    });
+
+    // Schedule Post
+    document.getElementById('scheduleBtn').addEventListener('click', () => {
+        window.location.href = `/schedule_post?content=${encodeURIComponent(generatedText)}`;
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold">Create Post</h1>
+        <button id="previewBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            <i class="fas fa-eye mr-2"></i>Preview
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Post Editor -->
+        <div class="card p-6">
+            <form method="POST" id="postForm" class="space-y-6">
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700 mb-2">Post Content</label>
+                    <textarea name="text" id="text" rows="8" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Write your post content here..."></textarea>
+                </div>
+
+                <div>
+                    <label for="media_urls" class="block text-sm font-medium text-gray-700 mb-2">Media URLs</label>
+                    <input type="text" name="media_urls" id="media_urls"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter comma-separated URLs">
+                    <p class="text-sm text-gray-500 mt-1">Separate multiple URLs with commas</p>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <button type="submit"
+                        class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-paper-plane mr-2"></i>Publish
+                    </button>
+                    <button type="button" id="draftBtn"
+                        class="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                        <i class="fas fa-save mr-2"></i>Save Draft
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- AI Assistant -->
+        <div class="space-y-6">
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4">AI Assistant</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label for="topic" class="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+                        <input type="text" id="topic"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter topic for AI generation">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="includeHashtags" class="mr-2">
+                        <label for="includeHashtags" class="text-sm text-gray-700">Include hashtags</label>
+                    </div>
+                    <button id="generateBtn"
+                        class="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                        <i class="fas fa-magic mr-2"></i>Generate Content
+                    </button>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4">Post Tips</h3>
+                <ul class="space-y-2 text-gray-700">
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Keep your content concise and engaging</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Use relevant hashtags (2-3 recommended)</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Include a call-to-action</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Add media to increase engagement</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Post Preview</h3>
+            <div class="border rounded p-4 mb-4">
+                <p id="previewContent"></p>
+            </div>
+            <div class="flex justify-end">
+                <button id="closePreview"
+                    class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // AI Content Generation
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+        const topic = document.getElementById('topic').value;
+        const includeHashtags = document.getElementById('includeHashtags').checked;
+
+        try {
+            const response = await fetch('/generate_content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `topic=${encodeURIComponent(topic)}&include_hashtags=${includeHashtags}`
+            });
+
+            const data = await response.json();
+            if (data.content) {
+                document.getElementById('text').value = data.content;
+            }
+        } catch (error) {
+            console.error('Error generating content:', error);
+        }
+    });
+
+    // Preview Modal
+    const previewModal = document.getElementById('previewModal');
+    const previewContent = document.getElementById('previewContent');
+
+    document.getElementById('previewBtn').addEventListener('click', () => {
+        const text = document.getElementById('text').value;
+        previewContent.textContent = text;
+        previewModal.classList.remove('hidden');
+    });
+
+    document.getElementById('closePreview').addEventListener('click', () => {
+        previewModal.classList.add('hidden');
+    });
+
+    // Save Draft
+    document.getElementById('draftBtn').addEventListener('click', () => {
+        const text = document.getElementById('text').value;
+        const mediaUrls = document.getElementById('media_urls').value;
+        
+        localStorage.setItem('postDraft', JSON.stringify({
+            text,
+            mediaUrls,
+            timestamp: new Date().toISOString()
+        }));
+
+        alert('Draft saved successfully!');
+    });
+
+    // Load Draft
+    window.addEventListener('load', () => {
+        const draft = localStorage.getItem('postDraft');
+        if (draft) {
+            const { text, mediaUrls } = JSON.parse(draft);
+            document.getElementById('text').value = text;
+            document.getElementById('media_urls').value = mediaUrls;
+        }
+    });
+</script>
+{% endblock %}
